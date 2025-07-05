@@ -1,6 +1,6 @@
-# Mushroom Run!
+# Mushroom Run
 
-A cute mushroom runner game where you dodge rocks and logs by jumping through forest !
+A cute mushroom runner game where you dodge rocks and logs by jumping through forest 
 
 ![screenshot](assets/screenshot.png) 
 
@@ -8,5 +8,5 @@ A cute mushroom runner game where you dodge rocks and logs by jumping through fo
 - Press **Spacebar** to jump 
 - Avoid touching the rocks and logs
 
-## 🚀 Play Now
-👉 [Play the Game on GitHub Pages](https://your-username.github.io/veggie-run/)  
+##  Play Now
+ [Play the Game on GitHub Pages](https://hogooddev.github.io/mushroom-run/)  
