@@ -1,6 +1,6 @@
 # Mushroom Run (/≧▽≦)/🍄 
 
-A cute mushroom runner game where you dodge rocks and logs by jumping through forest 
+A cute mushroom runner game where you dodge rocks and logs by jumping through a forest 
 
 ![screenshot](assets/screenshot.png) 
 
