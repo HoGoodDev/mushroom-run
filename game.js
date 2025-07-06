@@ -4,33 +4,46 @@ const ctx = canvas.getContext("2d");
 const bg = new Image();
 bg.src = "assets/background.jpg";
 
+const bg2 = new Image();
+bg2.src = "assets/background2.jpg";
+
+const bg3 = new Image();
+bg3.src = "assets/background3.png";
+
+const bg4 = new Image();
+bg4.src = "assets/background4.png";
+
 const ground = new Image();
 ground.src = "assets/ground.png";
 
 const mushroomWalk = new Image();
 mushroomWalk.src = "assets/mushroom_walk.png";
+
 const mushroomIdle = new Image();
 mushroomIdle.src = "assets/mushroom_idle.png";
+
 const rock = new Image();
 rock.src = "assets/rock.png";
 
 const log = new Image();
 log.src = "assets/log.png";
 
+const GROUND_DRAW_Y = 350;
+const PLAYER_GROUND_Y = 300;
+
 let groundX = 0;
 let bgX = 0;
 let playerX = 100;
-let playerY = 300;
+let playerY = PLAYER_GROUND_Y;
 let velocityY = 0;
 
-const gravityUp = 0.1; // lighter gravity while rising
-const gravityDown = 0.07; // stronger gravity while falling
+const gravityUp = 0.09;
+const gravityDown = 0.07;
 
 let isJumping = false;
 let isAlive = true;
 
-const jumpPower = -6;
-const groundY = 300;
+const jumpPower = -5;
 
 let playerFrame = 0;
 let frameCount = 0;
@@ -38,11 +51,17 @@ let keys = {};
 
 const obstacles = [];
 
-// Score tracking
 let score = 0;
 let scoreTimer = 0;
 
-// Input handlers
+let obstacleSpeed = 4;
+let spawnRate = 1500;
+let obstacleSpawner;
+let difficultyLevel = 1;
+
+const MAX_SPEED = 8;
+const MIN_SPAWN_RATE = 1000;
+
 document.addEventListener("keydown", (e) => {
   keys[e.code] = true;
 
@@ -60,25 +79,36 @@ document.addEventListener("keyup", (e) => {
   keys[e.code] = false;
 });
 
-// Spawn obstacles every 1.5 seconds
 function spawnObstacle() {
   if (!isAlive) return;
 
   const type = Math.random() < 0.5 ? rock : log;
 
-  // Bigger obstacles & lower on ground to make it easier to jump over
   obstacles.push({
     x: canvas.width,
-    y: groundY + -12, // lower than before (was +20)
-    width: 150, // bigger width (increased from 72)
-    height: 150, // bigger height (increased from 72)
+    y: GROUND_DRAW_Y - 22,
+    width: 72,
+    height: 72,
     image: type,
   });
 }
 
-setInterval(spawnObstacle, 1500);
+function adjustDifficulty() {
+  if (!isAlive) return;
 
-// Simple AABB collision detection
+  if (score % 300 === 0 && score !== 0 && obstacleSpeed < MAX_SPEED) {
+    obstacleSpeed += 0.2;
+  }
+
+  if (score % 500 === 0 && score !== 0 && spawnRate > MIN_SPAWN_RATE) {
+    spawnRate -= 50;
+    clearInterval(obstacleSpawner);
+    obstacleSpawner = setInterval(spawnObstacle, spawnRate);
+  }
+
+  difficultyLevel = Math.floor(score / 400) + 1;
+}
+
 function checkCollision(a, b) {
   return (
     a.x < b.x + b.width &&
@@ -88,23 +118,34 @@ function checkCollision(a, b) {
   );
 }
 
-// Main game loop
+function getCurrentBackground() {
+  if (difficultyLevel >= 10) return bg4;
+  if (difficultyLevel >= 6) return bg3;
+  if (difficultyLevel >= 3) return bg2;
+  return bg;
+}
+
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Scroll background
   bgX -= 1;
   if (bgX <= -canvas.width) bgX = 0;
-  ctx.drawImage(bg, bgX, 0, canvas.width, canvas.height);
-  ctx.drawImage(bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-  // Scroll ground
+  const currentBg = getCurrentBackground();
+  ctx.drawImage(currentBg, bgX, 0, canvas.width, canvas.height);
+  ctx.drawImage(currentBg, bgX + canvas.width, 0, canvas.width, canvas.height);
+
   groundX -= 2;
   if (groundX <= -canvas.width) groundX = 0;
-  ctx.drawImage(ground, groundX, 350, canvas.width, 50);
-  ctx.drawImage(ground, groundX + canvas.width, 350, canvas.width, 50);
+  ctx.drawImage(ground, groundX, GROUND_DRAW_Y, canvas.width, 50);
+  ctx.drawImage(
+    ground,
+    groundX + canvas.width,
+    GROUND_DRAW_Y,
+    canvas.width,
+    50
+  );
 
-  // Apply gravity with smooth jump/fall
   if (velocityY < 0) {
     velocityY += gravityUp;
   } else {
@@ -112,12 +153,11 @@ function gameLoop() {
   }
   playerY += velocityY;
 
-  if (playerY >= groundY) {
-    playerY = groundY;
+  if (playerY >= PLAYER_GROUND_Y) {
+    playerY = PLAYER_GROUND_Y;
     isJumping = false;
   }
 
-  // Determine sprite & animation frames
   let usingSprite = mushroomIdle;
   let totalFrames = 9;
   let frameWidth = mushroomIdle.width / totalFrames;
@@ -135,7 +175,6 @@ function gameLoop() {
     playerFrame = (playerFrame + 1) % totalFrames;
   }
 
-  // Draw player sprite frame
   ctx.drawImage(
     usingSprite,
     playerFrame * frameWidth,
@@ -148,54 +187,47 @@ function gameLoop() {
     100
   );
 
-  // Update and draw obstacles with smaller collision hitboxes
   for (let i = obstacles.length - 1; i >= 0; i--) {
     const obs = obstacles[i];
-    obs.x -= 4;
+    obs.x -= obstacleSpeed;
     ctx.drawImage(obs.image, obs.x, obs.y, obs.width, obs.height);
 
     const playerRect = { x: playerX, y: playerY, width: 64, height: 64 };
-
-    const hitboxMarginX = 20; // shrink horizontal hitbox by 20px each side
-    const hitboxMarginY = 15; // shrink vertical hitbox by 15px each side
-
     const obsRect = {
-      x: obs.x + hitboxMarginX,
-      y: obs.y + hitboxMarginY,
-      width: obs.width - hitboxMarginX * 2,
-      height: obs.height - hitboxMarginY * 2,
+      x: obs.x,
+      y: obs.y,
+      width: obs.width,
+      height: obs.height,
     };
 
     if (checkCollision(playerRect, obsRect)) {
       isAlive = false;
     }
 
-    // Remove obstacles that go off screen
     if (obs.x + obs.width < 0) {
       obstacles.splice(i, 1);
     }
   }
 
-  // Score updates only if alive
   if (isAlive) {
     scoreTimer++;
     if (scoreTimer % 6 === 0) {
-      // roughly 10 points per second at 60fps
       score++;
     }
+    adjustDifficulty();
   }
 
-  // Draw score
   ctx.fillStyle = "#fff";
   ctx.font = "20px 'Press Start 2P', monospace";
   ctx.fillText(`Score: ${score}`, 20, 40);
-  // Draw game over screen if dead
+  ctx.fillText(`Level: ${difficultyLevel}`, 20, 70);
+
   if (!isAlive) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = "#fff";
-    ctx.textAlign = "center"; // Center horizontally
+    ctx.textAlign = "center";
     ctx.font = "20px 'Press Start 2P', monospace";
 
     ctx.fillText("Game Over", canvas.width / 2, 200);
@@ -207,7 +239,8 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// Start the game loop after background loads
+obstacleSpawner = setInterval(spawnObstacle, spawnRate);
+
 bg.onload = () => {
   gameLoop();
 };
